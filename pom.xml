@@ -171,6 +171,7 @@
 						<exclude>**/*IT.java</exclude>
 						<exclude>**/*IntegrationTest.java</exclude>
 					</excludes>
+
 				</configuration>
 			</plugin>
 
