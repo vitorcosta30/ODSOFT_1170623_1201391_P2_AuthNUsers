@@ -185,7 +185,7 @@ pipeline {
         }
         success {
             echo "Pipeline successful!"
-            script {/**
+            /**script {
                 if (env.BRANCH_NAME == 'staging' || env.BRANCH_NAME == 'dev') {
                     echo "Running health checks for ${env.BRANCH_NAME} environment"
 
@@ -214,8 +214,8 @@ pipeline {
                     if (!success) {
                         error("Health check failed: Service did not start within ${maxRetries * waitSeconds} seconds on port ${port}")
                     }
-                }**/
-            }
+                }
+            }**/
 
         }
         failure {
