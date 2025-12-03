@@ -1,0 +1,225 @@
+pipeline {
+    agent any
+
+    environment {
+        APP_NAME = "auth"
+        SONAR_TOKEN = credentials('sonarcloud-token')
+        VERSION_FILE = "stable_version.txt"
+    }
+
+    options {
+        skipDefaultCheckout(true)
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo "Checking out source for branch: ${env.BRANCH_NAME}"
+                checkout scm
+            }
+        }
+
+
+        stage('Build') {
+            steps {
+                echo "Building ${APP_NAME} for branch: ${env.BRANCH_NAME}"
+                script{
+                    sh 'mvn clean compile -B'
+                }
+            }
+        }
+
+        stage('Unit Tests') {
+            steps {
+                echo "Running unit tests for ${APP_NAME}..."
+                script{
+                    catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                        sh 'mvn test verify'
+                    }
+                }
+            }
+            post {
+                always {
+                    junit '**/target/surefire-reports/*.xml'
+                    recordCoverage(
+                        tools: [[parser: 'JACOCO', pattern: 'target/site/jacoco/jacoco.xml']],
+                        id: 'jacoco-unit',
+                        name: 'JaCoCo Unit Coverage',
+                        sourceCodeRetention: 'LAST_BUILD',
+                        sourceDirectories: [[path: 'src/main/java'], [path: 'target/generated-sources/annotations']],
+                        qualityGates: [
+                            [metric: 'LINE',   baseline: 'PROJECT', threshold: 80.0, criticality: 'NOTE'],
+                            [metric: 'BRANCH', baseline: 'PROJECT', threshold: 70.0, criticality: 'NOTE']
+                        ]
+                    )
+                }
+            }
+        }
+
+        stage('Integration Tests') {
+            steps {
+                echo "Running integration tests..."
+                script{
+                    catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                        sh 'mvn verify -Dmaven.test.failure.ignore=true  jacoco:prepare-agent-integration failsafe:integration-test failsafe:verify'
+                    }
+                }
+            }
+            post {
+                always {
+                    junit '**/target/failsafe-reports/*.xml'
+                    recordCoverage(
+                        tools: [[parser: 'JACOCO', pattern: 'target/site/jacoco-it/jacoco.xml']],
+                        id: 'jacoco-it',
+                        name: 'JaCoCo IT Coverage',
+                        sourceCodeRetention: 'LAST_BUILD',
+                        sourceDirectories: [[path: 'src/main/java'], [path: 'target/generated-sources/annotations']],
+                        qualityGates: [
+                            [metric: 'LINE',   baseline: 'PROJECT', threshold: 80.0, criticality: 'NOTE'],
+                            [metric: 'BRANCH', baseline: 'PROJECT', threshold: 70.0, criticality: 'NOTE']
+                        ]
+                    )
+                }
+            }
+        }
+        stage('Mutation Tests') {
+            steps {
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    sh 'mvn org.pitest:pitest-maven:mutationCoverage'
+                }
+            }
+            post {
+                always {
+                    recordCoverage(
+                        tools: [[parser: 'PIT', pattern: 'target/pit-reports/latest/mutations.xml']],
+                        id: 'pit',
+                        name: 'PIT Mutation Coverage',
+                        sourceCodeRetention: 'LAST_BUILD',
+                        sourceDirectories: [[path: 'src/main/java'], [path: 'target/generated-sources/annotations']],
+                        qualityGates: [[metric: 'MUTATION', baseline: 'PROJECT', threshold: 70.0, criticality: 'NOTE']]
+                    )
+                }
+            }
+        }
+
+
+        stage('Static Code Analysis') {
+            steps {
+                withSonarQubeEnv('SonarCloud') {
+                    sh "mvn sonar:sonar "
+                }
+            }
+        }
+
+         stage('Archive'){
+             steps{
+                 script {
+                     if (currentBuild.resultIsBetterOrEqualTo('SUCCESS')) {
+                         echo "Build successful, archiving stable build."
+
+                         if (!fileExists(VERSION_FILE)) {
+                             writeFile file: VERSION_FILE, text: '-1'
+                         }
+
+                         def currentVersion = readFile(VERSION_FILE).trim().toInteger()
+                         def newVersion = currentVersion + 1
+                         def stableTag = "stable-v1.${newVersion}"
+
+                         dir('target') {
+                             if (isUnix()) {
+                                 sh "mv *.jar ${stableTag}.jar"
+                             } else {
+                                 bat "rename *.jar ${stableTag}.jar"
+                             }
+                         }
+                         archiveArtifacts 'target/*.jar'
+
+                         writeFile file: VERSION_FILE, text: "${newVersion}"
+                     } else {
+
+                         echo "Archiving JAR file"
+                         archiveArtifacts 'target/*.jar'
+
+                     }
+                 }
+             }
+         }
+
+
+        stage('Approval to deploy') {
+            when {
+                anyOf {
+                    branch 'main'
+                    branch 'staging'
+                }
+            }
+            steps {
+                script {
+                    timeout(time: 2, unit: 'HOURS') {
+                        input message: 'Approve deployment to PRODUCTION?', ok: 'Deploy'
+                    }
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                script {
+                    if (env.BRANCH_NAME == 'dev') {
+                        echo "Deploying ${APP_NAME} to DEV environment..."
+                    } else if (env.BRANCH_NAME == 'staging') {
+                        echo "Deploying ${APP_NAME} to STAGING environment..."
+                    } else if (env.BRANCH_NAME == 'main') {
+                        echo "Deploying ${APP_NAME} to PRODUCTION environment..."//heathcheck present in playbook
+                    } else {
+                        echo "Branch ${env.BRANCH_NAME} is not configured for deployment."
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "Pipeline completed for branch: ${env.BRANCH_NAME}"
+        }
+        success {
+            echo "Pipeline successful!"
+            script {/**
+                if (env.BRANCH_NAME == 'staging' || env.BRANCH_NAME == 'dev') {
+                    echo "Running health checks for ${env.BRANCH_NAME} environment"
+
+                    def serverAddress = 'localhost'
+                    def port = (env.BRANCH_NAME == 'staging') ? 8887 : 8886
+                    def maxRetries = 30
+                    def waitSeconds = 10
+                    def success = false
+
+                    for (int i = 1; i <= maxRetries; i++) {
+                        def response = sh(
+                            script: "ncat -zv ${serverAddress} ${port} 2>&1 || true",
+                            returnStdout: true
+                        ).trim()
+
+                        if (response.contains("Connected to")) {
+                            echo "Health check passed: Service is up on port ${port} (attempt ${i})"
+                            success = true
+                            break
+                        } else {
+                            echo "Attempt ${i}/${maxRetries}: Service not reachable yet on port ${port}. Retrying in ${waitSeconds}s..."
+                            sleep(waitSeconds)
+                        }
+                    }
+
+                    if (!success) {
+                        error("Health check failed: Service did not start within ${maxRetries * waitSeconds} seconds on port ${port}")
+                    }
+                }**/
+            }
+
+        }
+        failure {
+            echo "Deployment failed!"
+        }
+    }
+}
