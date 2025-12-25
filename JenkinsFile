@@ -366,16 +366,35 @@ pipeline {
             }
         }
 
+
         stage('Staging Load Tests') {
             when {
                 branch 'staging'
+            }
+            environment {
+                K6_CLOUD_NAME = "staging-load-test-users"
+                K6_CLOUD_TAGS = "env=staging,ci=jenkins"
             }
             steps {
                 script {
                     echo "Running load tests in staging network"
 
+                    withCredentials([
+                        string(credentialsId: 'K6_CLOUD_TOKEN', variable: 'K6_CLOUD_TOKEN'),
+                        string(credentialsId: 'K6_CLOUD_PROJECT_ID', variable: 'K6_CLOUD_PROJECT_ID')
+                    ]) {
+                        sh """
+                            docker compose -f docker-compose.k6.staging.yml run \
+                              -e K6_CLOUD_TOKEN \
+                              -e K6_CLOUD_PROJECT_ID \
+                              -e K6_CLOUD_NAME \
+                              -e K6_CLOUD_TAGS \
+                              --name k6_staging_run \
+                              k6
+                        """
+                    }
+
                     sh """
-                        docker compose -f docker-compose.k6.staging.yml run --name k6_staging_run k6
                         docker cp k6_staging_run:/load-tests/results.json load-tests/results.json
                         docker rm k6_staging_run
                     """
@@ -387,6 +406,7 @@ pipeline {
                 }
             }
         }
+
 
 
         stage('Promote Image to stable') {
