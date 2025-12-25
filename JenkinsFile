@@ -214,9 +214,9 @@ pipeline {
                                   echo "RabbitMQ container already running."
                                 fi
                             if  docker ps --filter "name=lmsusers_dev" --format '{{.Names}}' | grep -q lmsusers_dev; then
-                              docker compose -f docker-compose.dev.yaml down
+                              docker compose -f docker-compose.dev.yml down
                             fi
-                            DOCKER_TAG=${IMAGE_TAG} docker compose -f docker-compose.dev.yaml up -d
+                            DOCKER_TAG=${IMAGE_TAG} docker compose -f docker-compose.dev.yml up -d
                         """
                     } else if (env.BRANCH_NAME == 'staging') {
                         echo "Deploying ${APP_NAME} to STAGING environment..."
@@ -234,9 +234,9 @@ pipeline {
                             fi
 
                             if  docker ps --filter "name=lmsusers-staging" --format '{{.Names}}' | grep -q lmsusers-staging; then
-                              docker compose -f docker-compose.staging.yml down
+                              docker compose -f docker-compose.staging.yaml down
                             fi
-                            DOCKER_TAG=${IMAGE_TAG} docker compose -f docker-compose.staging.yml up -d
+                            DOCKER_TAG=${IMAGE_TAG} docker compose -f docker-compose.staging.yaml up -d
                         """
                     } else if (env.BRANCH_NAME == 'main') {
                         sh """
