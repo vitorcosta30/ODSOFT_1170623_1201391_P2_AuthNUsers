@@ -1,0 +1,13 @@
+
+services:
+  k6:
+    build: ./load-tests
+    container_name: k6_staging
+    networks:
+      - staging_network
+    entrypoint: [ "k6" ]
+    command: ["run", "--out", "json=/load-tests/results.json", "/load-tests/staging-load.js"]
+
+networks:
+  staging_network:
+    external: true
