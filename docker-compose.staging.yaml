@@ -1,0 +1,20 @@
+services:
+  lmsusers-staging:
+    image: vitorcosta30/odsoft_1170623_1201391:${DOCKER_TAG}
+    container_name: lmsusers-staging
+    environment:
+      SPRING_PROFILES_ACTIVE: staging,bootstrap
+    networks:
+      - staging_network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  staging_network:
+    external: true
+
+

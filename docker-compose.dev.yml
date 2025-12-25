@@ -1,0 +1,19 @@
+
+services:
+  lmsusers-dev:
+    image: vitorcosta30/odsoft_1170623_1201391:${DOCKER_TAG}
+    container_name: lmsusers-dev
+    environment:
+      SPRING_PROFILES_ACTIVE: dev,bootstrap
+    networks:
+      - dev_network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  dev_network:
+    external: true
