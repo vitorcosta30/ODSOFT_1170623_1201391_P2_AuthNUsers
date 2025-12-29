@@ -13,7 +13,7 @@ export let options = {
     },
 };
 
-const BASE_URL = 'http://lmsbooks-staging:8088';
+const BASE_URL = 'http://lmsusers-staging:8088';
 const PASSWORD = 'Password123!';
 
 export default function () {
