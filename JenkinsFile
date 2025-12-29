@@ -306,7 +306,7 @@ pipeline {
 
                     for (int i = 1; i <= maxRetries; i++) {
 
-                        def username = "smoke_user_${env.BUILD_NUMBER}_${i}"
+                        def username = "smoke_user_${env.BUILD_NUMBER}_${i}@gmail.com"
                         def password = "Password123!"
 
 
