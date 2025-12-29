@@ -62,5 +62,6 @@ public class CreateUserRequest {
         this.username = username;
         this.name = fullName;
         this.password = password;
+        this.role = "READER";
     }
 }
