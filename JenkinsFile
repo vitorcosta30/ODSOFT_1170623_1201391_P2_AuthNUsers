@@ -305,20 +305,72 @@ pipeline {
                     def smokePassed = false
 
                     for (int i = 1; i <= maxRetries; i++) {
-                        def status = sh(
+
+                        def username = "smoke_user_${env.BUILD_NUMBER}_${i}"
+                        def password = "Password123!"
+
+
+                        def healthStatus = sh(
                             script: """
-                            docker run --rm --network ${networkName} curlimages/curl:latest -s -o /dev/null -w '%{http_code}' http://${serviceName}:8088/actuator/health || true
+                            docker run --rm --network ${networkName} curlimages/curl:latest \
+                              -s -o /dev/null -w '%{http_code}' \
+                              http://${serviceName}:8088/actuator/health || true
                             """,
                             returnStdout: true
                         ).trim()
 
-                        if (status == "200") {
-                            echo "Smoke test passed on attempt ${i}"
+                        if (healthStatus != "200") {
+                            echo "Health check failed (status ${healthStatus}). Retrying in ${waitSeconds}s..."
+                            sleep(waitSeconds)
+                            continue
+                        }
+
+
+                        def registerStatus = sh(
+                            script: """
+                            docker run --rm --network ${networkName} curlimages/curl:latest \
+                              -s -o /dev/null -w '%{http_code}' \
+                              -X POST http://${serviceName}:8088/api/public/register \
+                              -H 'Content-Type: application/json' \
+                              -d '{
+                                    "username": "${username}",
+                                    "password": "${password}",
+                                    "name": "Smoke Test User",
+                                    "role": "READER",
+                                    "authorities": ["READER"]
+                                  }' || true
+                            """,
+                            returnStdout: true
+                        ).trim()
+
+                        if (registerStatus != "200") {
+                            echo "Register failed (status ${registerStatus}). Retrying in ${waitSeconds}s..."
+                            sleep(waitSeconds)
+                            continue
+                        }
+
+
+                        def loginStatus = sh(
+                            script: """
+                            docker run --rm --network ${networkName} curlimages/curl:latest \
+                              -s -o /dev/null -w '%{http_code}' \
+                              -X POST http://${serviceName}:8088/api/public/login \
+                              -H 'Content-Type: application/json' \
+                              -d '{
+                                    "username": "${username}",
+                                    "password": "${password}"
+                                  }' || true
+                            """,
+                            returnStdout: true
+                        ).trim()
+
+                        if (loginStatus == "200") {
+                            echo "Smoke tests passed on attempt ${i}"
                             smokePassed = true
                             break
                         }
 
-                        echo "Attempt ${i}/${maxRetries} failed (status ${status}). Retrying in ${waitSeconds}s..."
+                        echo "Login failed (status ${loginStatus}). Retrying in ${waitSeconds}s..."
                         sleep(waitSeconds)
                     }
 
@@ -328,6 +380,7 @@ pipeline {
                 }
             }
         }
+
 
 
 
