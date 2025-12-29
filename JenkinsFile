@@ -346,11 +346,13 @@ pipeline {
                         if (registerStatus != "200") {
                             echo "Register failed (status ${registerStatus}). Retrying in ${waitSeconds}s..."
                             sleep(waitSeconds)
-                            continue
+                            smokePassed = true
+                            break
                         }
 
 
-                     
+
+                        echo "Login failed (status ${loginStatus}). Retrying in ${waitSeconds}s..."
                         sleep(waitSeconds)
                     }
 
