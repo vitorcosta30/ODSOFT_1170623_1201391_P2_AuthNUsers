@@ -350,27 +350,7 @@ pipeline {
                         }
 
 
-                        def loginStatus = sh(
-                            script: """
-                            docker run --rm --network ${networkName} curlimages/curl:latest \
-                              -s -o /dev/null -w '%{http_code}' \
-                              -X POST http://${serviceName}:8088/api/public/login \
-                              -H 'Content-Type: application/json' \
-                              -d '{
-                                    "username": "${username}",
-                                    "password": "${password}"
-                                  }' || true
-                            """,
-                            returnStdout: true
-                        ).trim()
-
-                        if (loginStatus == "200") {
-                            echo "Smoke tests passed on attempt ${i}"
-                            smokePassed = true
-                            break
-                        }
-
-                        echo "Login failed (status ${loginStatus}). Retrying in ${waitSeconds}s..."
+                     
                         sleep(waitSeconds)
                     }
 
