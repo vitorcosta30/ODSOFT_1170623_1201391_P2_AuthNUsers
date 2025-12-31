@@ -202,7 +202,7 @@ pipeline {
 
 
 
-        stage('Deploy with Docker Compose') {
+        stage('Deploy to non-production environment') {
             steps {
                 script {
                     if (env.BRANCH_NAME == 'dev') {
@@ -238,8 +238,28 @@ pipeline {
                             fi
                             DOCKER_TAG=${IMAGE_TAG} docker compose -f docker-compose.staging.yaml up -d
                         """
-                    } else if (env.BRANCH_NAME == 'main') {
-                        sh """
+
+                    } else {
+                        echo "Branch ${env.BRANCH_NAME} is not configured for deployment."
+                    }
+                }
+            }
+        }
+
+
+
+
+
+        stage('Production deployment') {
+            when {
+                branch 'main' // Monitoring is most critical on production
+            }
+            parallel {
+                stage('Deployment') {
+                    steps {
+                        script {
+                            echo "Starting Zero-Downtime Deployment for main branch..."
+                            sh """
                             if ! docker ps --filter "name=rabbitmq_in_lms_network" --format '{{.Names}}' | grep -q rabbitmq_in_lms_network; then
                               docker compose -f docker-compose.infra.prod.yml up -d rabbitmq_in_lms_network
                             else
@@ -257,8 +277,6 @@ pipeline {
                             else
                               echo "Load balancer container already running."
                             fi
-
-
                             if ! docker ps --filter "name=users1_in_lms_network" --format '{{.Names}}' | grep -q users1_in_lms_network; then
                               DOCKER_TAG=${IMAGE_TAG} docker compose -f docker-compose.yml up -d lmsusers_1
                             else
@@ -276,13 +294,54 @@ pipeline {
                               docker compose -f docker-compose.yml stop lmsusers_2
                               DOCKER_TAG=${IMAGE_TAG} docker compose -f docker-compose.yml up -d lmsusers_2
                             fi
-                        """
-                    } else {
-                        echo "Branch ${env.BRANCH_NAME} is not configured for deployment."
+                            """
+                        }
+                    }
+                }
+
+                stage('Uptime Monitor') {
+                    steps {
+                        script {
+                            echo "Verifying zero downtime..."
+                            // Monitor for 60 seconds (adjust based on deployment time)
+                            def durationSeconds = 60
+                            def intervalSeconds = 2
+                            def iterations = durationSeconds / intervalSeconds
+                            def failures = 0
+
+                            for (int i = 0; i < iterations; i++) {
+                                try {
+                                    def status = sh(
+                                        script: "curl -s -o /dev/null -w '%{http_code}' ${HEALTHCHECK_URL}",
+                                        returnStdout: true
+                                    ).trim()
+
+                                    if (status == "200") {
+                                        echo "[UPTIME OK] Attempt ${i+1}: Service is live (HTTP 200)"
+                                    } else {
+                                        echo "[DOWN TIME DETECTED] Attempt ${i+1}: Status code ${status}"
+                                        failures++
+                                    }
+                                } catch (Exception e) {
+                                    echo "[ERROR] Attempt ${i+1}: Connection failed"
+                                    failures++
+                                }
+                                sleep intervalSeconds
+                            }
+
+                            if (failures > 0) {
+                                echo "Zero downtime check failed with ${failures} outages."
+                                // Optional: error("Downtime detected during deployment!")
+                            } else {
+                                echo "SUCCESS: Zero downtime verified throughout the deployment process."
+                            }
+                        }
                     }
                 }
             }
         }
+
+
 
 
 
