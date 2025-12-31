@@ -4,6 +4,9 @@ services:
     container_name: lmsusers-staging
     environment:
       SPRING_PROFILES_ACTIVE: staging,bootstrap
+    mem_limit: 256m
+    mem_reservation: 32m
+    cpus: "0.5"
     networks:
       - staging_network
     healthcheck:

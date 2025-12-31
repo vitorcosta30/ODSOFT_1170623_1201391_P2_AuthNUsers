@@ -5,6 +5,10 @@ services:
     container_name: lmsusers-dev
     environment:
       SPRING_PROFILES_ACTIVE: dev,bootstrap
+
+    mem_limit: 256m
+    mem_reservation: 32m
+    cpus: "0.5"
     networks:
       - dev_network
     healthcheck:
