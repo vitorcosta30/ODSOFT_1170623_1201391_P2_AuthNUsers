@@ -8,7 +8,7 @@ pipeline {
         IMAGE_NAME = 'lmsusers'
         IMAGE_TAG = "${APP_NAME}-${env.GIT_COMMIT}"
         DOCKER_REPO = "vitorcosta30/odsoft_1170623_1201391"
-        HEALTHCHECK_URL = "http://host.docker.internal:8888/actuator/health"
+        HEALTHCHECK_URL = "http://host.docker.internal:8880/actuator/health"
         STABLE_BUILD_TAG = "users-prod-stable"
         ADMIN1 = "1201391@isep.ipp.pt"
         ADMIN2 = "1170623@isep.ipp.pt"
