@@ -487,7 +487,6 @@ pipeline {
                     }
 
                     sh """
-                        docker cp k6_staging_run:/load-tests/results.json load-tests/results.json
                         docker rm k6_staging_run
                     """
                 }
