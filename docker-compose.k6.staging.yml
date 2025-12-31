@@ -6,7 +6,7 @@ services:
     networks:
       - staging_network
     entrypoint: [ "k6" ]
-    command: ["run",  "--out", "json=/load-tests/results.json",  "--out","cloud"  "/load-tests/staging-load.js",]
+    command: ["run",  "--out", "json=/load-tests/results.json",  "--out","cloud",  "/load-tests/staging-load.js"]
 
 networks:
   staging_network:
