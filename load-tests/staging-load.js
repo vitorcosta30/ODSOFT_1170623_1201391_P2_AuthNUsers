@@ -26,7 +26,7 @@ export default function () {
     });
 
 
-    const username = `user_${__VU}_${__ITER}`;
+    const username = `user_${__VU}_${__ITER}@gmail.com`;
 
     const registerPayload = JSON.stringify({
         username: username,
