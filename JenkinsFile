@@ -492,11 +492,7 @@ pipeline {
                     """
                 }
             }
-            post {
-                always {
-                    archiveArtifacts artifacts: 'load-tests/results.json', fingerprint: true
-                }
-            }
+
         }
 
 
