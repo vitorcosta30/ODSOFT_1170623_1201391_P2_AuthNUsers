@@ -30,7 +30,7 @@ export default function () {
 
     const registerPayload = JSON.stringify({
         username: username,
-        password: PASSWORD,
+        password: `${PASSWORD}`,
         name: 'Load Test User',
         role: 'READER',
         authorities: ['READER'],
@@ -56,7 +56,7 @@ export default function () {
 
     const loginPayload = JSON.stringify({
         username: username,
-        password: PASSWORD,
+        password: `${PASSWORD}`,
     });
 
     const loginRes = http.post(
