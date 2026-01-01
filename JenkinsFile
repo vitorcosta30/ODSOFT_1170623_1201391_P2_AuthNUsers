@@ -289,7 +289,7 @@ pipeline {
                             ATTEMPTS=30
                             HEALTHY=false
 
-                            for i in $(seq 1 \$ATTEMPTS); do
+                            for i in \$(seq 1 \$ATTEMPTS); do
                               if docker exec users1_in_lms_network \
                                  curl -sf http://localhost:8080/actuator/health > /dev/null; then
                                 echo "Instance 1 is healthy"
