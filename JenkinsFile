@@ -304,7 +304,7 @@ pipeline {
                             if [ "$HEALTHY" != "true" ]; then
                               echo "Instance 1 failed to start — rolling back!"
 
-                              docker compose -f docker-compose.yml rm -fs lmsbooks_1
+                              docker compose -f docker-compose.yml rm -fs lmsusers_1
                               DOCKER_TAG=${STABLE_BUILD_TAG} docker compose -f docker-compose.yml up -d lmsusers_1
 
                               echo "Rollback completed. Aborting deployment."
