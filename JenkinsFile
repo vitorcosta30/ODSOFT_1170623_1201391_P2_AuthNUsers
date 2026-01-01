@@ -322,6 +322,35 @@ pipeline {
                             """
                         }
                     }
+                        post {
+                            aborted {
+                                script {
+                                    echo "Production deployment aborted — rolling back to prod stable..."
+                                    sh """
+                                        docker pull ${DOCKER_REPO}:${STABLE_BUILD_TAG}
+                                        if ! docker ps --filter "name=users1_in_lms_network" --format '{{.Names}}' | grep -q users1_in_lms_network; then
+                                          DOCKER_TAG=${STABLE_BUILD_TAG} docker compose -f docker-compose.yml up -d lmsusers_1
+                                        else
+                                          echo "Replacing instance 1 of users Microservice."
+                                          docker compose -f docker-compose.yml stop lmsusers_1
+                                          DOCKER_TAG=${STABLE_BUILD_TAG} docker compose -f docker-compose.yml up -d lmsusers_1
+                                        fi
+                                        echo "Waiting for instance 1 to start up."
+                                        sleep 19
+
+                                        if ! docker ps --filter "name=users2_in_lms_network" --format '{{.Names}}' | grep -q users2_in_lms_network; then
+                                          DOCKER_TAG=${STABLE_BUILD_TAG} docker compose -f docker-compose.yml up -d lmsusers_2
+                                        else
+                                          echo "Replacing instance 2 of users Microservice."
+                                          docker compose -f docker-compose.yml stop lmsusers_2
+                                          DOCKER_TAG=${STABLE_BUILD_TAG} docker compose -f docker-compose.yml up -d lmsusers_2
+                                        fi
+                                    """
+                                    echo "Rollback to prod stable completed after abort."
+                                }
+                            }
+                        }
+
                 }
 
                 stage('Uptime Monitor') {
@@ -589,7 +618,7 @@ pipeline {
                           DOCKER_TAG=${STABLE_BUILD_TAG} docker compose -f docker-compose.yml up -d lmsusers_1
                         fi
                         echo "Waiting for instance 1 to start up."
-                        sleep 5
+                        sleep 19
 
                         if ! docker ps --filter "name=users2_in_lms_network" --format '{{.Names}}' | grep -q users2_in_lms_network; then
                           DOCKER_TAG=${STABLE_BUILD_TAG} docker compose -f docker-compose.yml up -d lmsusers_2
