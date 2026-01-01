@@ -476,7 +476,7 @@ pipeline {
                         string(credentialsId: 'K6_CLOUD_PROJECT_ID', variable: 'K6_CLOUD_PROJECT_ID')
                     ]) {
                         sh """
-                            docker compose -f docker-compose.k6.staging.yml run \
+                            docker compose -f docker-compose.k6.staging.yml run --rm\
                               -e K6_CLOUD_TOKEN \
                               -e K6_CLOUD_PROJECT_ID \
                               -e K6_CLOUD_NAME \
@@ -485,10 +485,6 @@ pipeline {
                               k6
                         """
                     }
-
-                    sh """
-                        docker rm k6_staging_run
-                    """
                 }
             }
 
