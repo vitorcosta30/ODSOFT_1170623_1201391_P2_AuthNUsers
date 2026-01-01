@@ -286,8 +286,34 @@ pipeline {
                             fi
                             echo "Waiting for instance 1 to start up."
 
-                            docker exec users1_in_lms_network \
-                              sh -c 'until curl -sf http://localhost:8080/actuator/health; do sleep 2; done'
+                            ATTEMPTS=30
+                            HEALTHY=false
+
+                            for i in $(seq 1 $ATTEMPTS); do
+                              if docker exec users1_in_lms_network \
+                                 curl -sf http://localhost:8080/actuator/health > /dev/null; then
+                                echo "Instance 1 is healthy"
+                                HEALTHY=true
+                                break
+                              fi
+                              echo "Attempt $i/$ATTEMPTS in Instance 1 failed, retrying..."
+                              sleep 2
+                            done
+
+                            # Rollback if unhealthy
+                            if [ "$HEALTHY" != "true" ]; then
+                              echo "Instance 1 failed to start — rolling back!"
+
+                              docker compose -f docker-compose.yml rm -fs lmsbooks_1
+                              DOCKER_TAG=${STABLE_BUILD_TAG} docker compose -f docker-compose.yml up -d lmsusers_1
+
+                              echo "Rollback completed. Aborting deployment."
+                              exit 1
+                            fi
+
+
+
+
 
                             if ! docker ps --filter "name=users2_in_lms_network" --format '{{.Names}}' | grep -q users2_in_lms_network; then
                               DOCKER_TAG=${IMAGE_TAG} docker compose -f docker-compose.yml up -d lmsusers_2
