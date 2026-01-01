@@ -281,11 +281,13 @@ pipeline {
                               DOCKER_TAG=${IMAGE_TAG} docker compose -f docker-compose.yml up -d lmsusers_1
                             else
                               echo "Replacing instance 1 of users Microservice."
-                              docker compose -f docker-compose.yml stop lmsusers_1
+                              docker compose -f docker-compose.yml rm -fs lmsusers_1
                               DOCKER_TAG=${IMAGE_TAG} docker compose -f docker-compose.yml up -d lmsusers_1
                             fi
                             echo "Waiting for instance 1 to start up."
-                            sleep 5
+
+                            docker exec users1_in_lms_network \
+                              sh -c 'until curl -sf http://localhost:8080/actuator/health; do sleep 2; done'
 
                             if ! docker ps --filter "name=users2_in_lms_network" --format '{{.Names}}' | grep -q users2_in_lms_network; then
                               DOCKER_TAG=${IMAGE_TAG} docker compose -f docker-compose.yml up -d lmsusers_2
